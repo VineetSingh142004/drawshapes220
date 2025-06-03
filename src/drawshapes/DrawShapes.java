@@ -33,11 +33,19 @@ public class DrawShapes extends JFrame {
         RECTANGLE
     }
 
+    public enum OperationMode {
+        DRAW,
+        MOVE,
+        RESIZE
+    }
+
     private DrawShapesPanel shapePanel;
     private Scene scene;
     private ShapeType shapeType = ShapeType.SQUARE;
     private Color color = Color.RED;
     private Point startDrag;
+    private OperationMode currentMode = OperationMode.DRAW;
+    private Point lastDragPoint;
 
     public DrawShapes(int width, int height) {
         setTitle("Draw Shapes!");
@@ -72,27 +80,32 @@ public class DrawShapes extends JFrame {
                 System.out.printf("Mouse cliked at (%d, %d)\n", e.getX(), e.getY());
 
                 if (e.getButton() == MouseEvent.BUTTON1) {
-                    if (shapeType == ShapeType.SQUARE) {
-                        scene.addShape(new Square(color,
-                                e.getX(),
-                                e.getY(),
-                                100));
-                    } else if (shapeType == ShapeType.CIRCLE) {
-                        scene.addShape(new Circle(color,
-                                e.getPoint(),
-                                100));
-                    } else if (shapeType == ShapeType.RECTANGLE) {
-                        scene.addShape(new Rectangle(
-                                e.getPoint(),
-                                100,
-                                200,
-                                color));
-                    }
+                    if (currentMode == OperationMode.DRAW) {
+                        // Deselect all shapes before creating a new one
+                        deselectAllShapes();
 
+                        if (shapeType == ShapeType.SQUARE) {
+                            scene.addShape(new Square(color,
+                                    e.getX(),
+                                    e.getY(),
+                                    100));
+                        } else if (shapeType == ShapeType.CIRCLE) {
+                            scene.addShape(new Circle(color,
+                                    e.getPoint(),
+                                    100));
+                        } else if (shapeType == ShapeType.RECTANGLE) {
+                            scene.addShape(new Rectangle(
+                                    e.getPoint(),
+                                    100,
+                                    200,
+                                    color));
+                        }
+                        repaint();
+                    }
                 } else if (e.getButton() == MouseEvent.BUTTON2) {
                     // apparently this is middle click
                 } else if (e.getButton() == MouseEvent.BUTTON3) {
-                    // right right-click
+                    // right-click for selection
                     Point p = e.getPoint();
                     System.out.printf("Right click is (%d, %d)\n", p.x, p.y);
                     List<IShape> selected = scene.select(p);
@@ -101,13 +114,11 @@ public class DrawShapes extends JFrame {
                             s.setSelected(true);
                         }
                     } else {
-                        for (IShape s : scene) {
-                            s.setSelected(false);
-                        }
+                        deselectAllShapes();
                     }
                     System.out.printf("Select %d shapes\n", selected.size());
+                    repaint();
                 }
-                repaint();
             }
 
             /* (non-Javadoc)
@@ -115,7 +126,20 @@ public class DrawShapes extends JFrame {
              */
             public void mousePressed(MouseEvent e) {
                 System.out.printf("mouse pressed at (%d, %d)\n", e.getX(), e.getY());
-                scene.startDrag(e.getPoint());
+                if (currentMode == OperationMode.MOVE) {
+                    Point p = e.getPoint();
+                    List<IShape> selectedShapes = scene.select(p);
+                    if (selectedShapes.size() > 0) {
+                        // Set these shapes as selected if they weren't already
+                        for (IShape shape : selectedShapes) {
+                            shape.setSelected(true);
+                        }
+                        lastDragPoint = p;
+                    }
+                } else {
+                    // Original selection rectangle behavior
+                    scene.startDrag(e.getPoint());
+                }
 
             }
 
@@ -124,15 +148,38 @@ public class DrawShapes extends JFrame {
              */
             public void mouseReleased(MouseEvent e) {
                 System.out.printf("mouse released at (%d, %d)\n", e.getX(), e.getY());
+                lastDragPoint = null;
                 scene.stopDrag();
                 repaint();
             }
 
             @Override
             public void mouseDragged(MouseEvent e) {
-                System.out.printf("mouse drag! (%d, %d)\n", e.getX(), e.getY());
-                scene.updateSelectRect(e.getPoint());
-                repaint();
+                if (currentMode == OperationMode.MOVE && lastDragPoint != null) {
+                    // Calculate movement delta
+                    int dx = e.getX() - lastDragPoint.x;
+                    int dy = e.getY() - lastDragPoint.y;
+
+                    // Move all selected shapes
+                    for (IShape shape : scene) {
+                        if (shape.isSelected()) {
+                            Point currentAnchor = shape.getAnchorPoint();
+                            shape.setAnchorPoint(new Point(
+                                    currentAnchor.x + dx,
+                                    currentAnchor.y + dy
+                            ));
+                        }
+                    }
+
+                    // Update last drag point
+                    lastDragPoint = e.getPoint();
+                    repaint();
+                } else {
+                    // Original selection rectangle behavior
+                    System.out.printf("mouse drag! (%d, %d)\n", e.getX(), e.getY());
+                    scene.updateSelectRect(e.getPoint());
+                    repaint();
+                }
             }
 
             @Override
@@ -310,12 +357,13 @@ public class DrawShapes extends JFrame {
         menuBar.add(operationModeMenu);
 
         // draw option
-        JMenuItem drawItem = new JMenuItem("Resize");
-        operationModeMenu.add(drawItem);
-        drawItem.addActionListener(new ActionListener() {
+        JMenuItem drawModeItem = new JMenuItem("Draw");
+        operationModeMenu.add(drawModeItem);
+        drawModeItem.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                String text = e.getActionCommand();
-                System.out.println(text);
+                System.out.println("Switching to draw mode");
+                currentMode = OperationMode.DRAW;
+                deselectAllShapes(); // Deselect all shapes when switching to draw mode
             }
         });
 
@@ -324,8 +372,18 @@ public class DrawShapes extends JFrame {
         operationModeMenu.add(selectItem);
         selectItem.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                String text = e.getActionCommand();
-                System.out.println(text);
+                System.out.println("Switching to move mode");
+                currentMode = OperationMode.MOVE;
+            }
+        });
+
+        // resize option
+        JMenuItem resizeItem = new JMenuItem("Resize");
+        operationModeMenu.add(resizeItem);
+        resizeItem.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                System.out.println("Switching to resize mode");
+                currentMode = OperationMode.RESIZE;
             }
         });
 
@@ -360,4 +418,11 @@ public class DrawShapes extends JFrame {
         shapes.setVisible(true);
     }
 
+    // Add this method to the DrawShapes class
+    private void deselectAllShapes() {
+        for (IShape s : scene) {
+            s.setSelected(false);
+        }
+        repaint();
+    }
 }

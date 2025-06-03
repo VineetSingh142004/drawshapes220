@@ -29,55 +29,67 @@ import javax.swing.JMenuItem;
 @SuppressWarnings("serial")
 public class DrawShapes extends JFrame {
 
+    // Added two enums at the top for better organization
     public enum ShapeType {
-        SQUARE,
-        CIRCLE,
-        RECTANGLE
+        SQUARE, // basic square shape
+        CIRCLE, // basic circle shape
+        RECTANGLE // new shape I added for drawing rectangles
     }
 
     public enum OperationMode {
-        DRAW,
-        MOVE,
-        RESIZE,
-        ROTATE
+        DRAW, // default mode - for drawing new shapes
+        MOVE, // lets me move shapes around
+        RESIZE, // makes shapes bigger/smaller
+        ROTATE  // new feature to rotate rectangles
     }
 
+    // Main class variables - organized better
     private DrawShapesPanel shapePanel;
     private Scene scene;
-    private ShapeType shapeType = ShapeType.SQUARE;
-    private Color color = Color.RED;
-    private Point startDrag;
-    private OperationMode currentMode = OperationMode.DRAW;
-    private Point lastDragPoint;
-    private Stack<Scene> undoStack = new Stack<>();
-    private Stack<Scene> redoStack = new Stack<>();
+    private ShapeType shapeType = ShapeType.SQUARE;  // default shape is square
+    private Color color = Color.RED;                 // default color is red
+    private Point startDrag;                         // for dragging shapes
+    private OperationMode currentMode = OperationMode.DRAW;  // default mode is draw
+    private Point lastDragPoint;                     // helps track mouse movement
+    private Stack<Scene> undoStack = new Stack<>();  // for undo feature
+    private Stack<Scene> redoStack = new Stack<>();  // for redo feature
 
     public DrawShapes(int width, int height) {
+        // Set window title
         setTitle("Draw Shapes!");
+
+        // Create new scene
         scene = new Scene();
 
-        // Initialize first state
+        // Initialize first state for undo
         try {
             undoStack.push(scene.clone());
         } catch (CloneNotSupportedException e) {
             e.printStackTrace();
         }
 
-        // create our canvas, add to this frame's content pane
+        // Create canvas panel with specified size
         shapePanel = new DrawShapesPanel(width, height, scene);
+
+        // Add panel to frame
         this.getContentPane().add(shapePanel, BorderLayout.CENTER);
+
+        // Set window properties
         this.setResizable(false);
-        this.pack();
         this.setLocation(100, 100);
 
-        // Add key and mouse listeners to our canvas
+        // Important: Pack the frame to proper size
+        this.pack();
+
+        // Center window on screen
+        this.setLocationRelativeTo(null);
+
+        // Rest of your initialization code...
         initializeMouseListener();
         initializeKeyListener();
-
-        // initialize the menu options
         initializeMenu();
 
-        // Handle closing the window.
+        // Handle closing
         addWindowListener(new WindowAdapter() {
             public void windowClosing(WindowEvent e) {
                 System.exit(0);
@@ -85,6 +97,12 @@ public class DrawShapes extends JFrame {
         });
     }
 
+    /* Main mouse listener - handles all mouse operations
+     * I added new features here:
+     * - Mouse drag for moving shapes
+     * - Mouse wheel for resizing and rotation
+     * - Right click for selecting shapes
+     */
     private void initializeMouseListener() {
         MouseAdapter a = new MouseAdapter() {
 
@@ -107,7 +125,7 @@ public class DrawShapes extends JFrame {
                         }
 
                         if (newShape != null) {
-                            saveState(); // Save state before adding new shape
+                            saveState(); // Save state before adding a new shape
                             scene.addShape(newShape);
                             repaint();
                         }
@@ -272,8 +290,12 @@ public class DrawShapes extends JFrame {
         shapePanel.addMouseWheelListener(a); // Make sure this line is present
     }
 
-    /**
-     * Initialize the menu options
+    /* Menu initialization - I added many new menu items:
+     * - New colors (green, yellow, black)
+     * - Rectangle shape option
+     * - Move/Resize/Rotate operations
+     * - Save/Load file operations
+     * - Undo/Redo/Clear operations
      */
     private void initializeMenu() {
         // menu bar
@@ -587,7 +609,7 @@ public class DrawShapes extends JFrame {
         shapes.setVisible(true);
     }
 
-    // Add this method to the DrawShapes class
+    // Helper function I made to deselect all shapes
     private void deselectAllShapes() {
         for (IShape s : scene) {
             s.setSelected(false);
@@ -595,20 +617,49 @@ public class DrawShapes extends JFrame {
         repaint();
     }
 
-    // Add these methods to the DrawShapes class
+    /* Save current state for undo/redo
+     * I use this whenever something changes
+     * Like when moving shapes or rotating them
+     */
     private void saveState() {
         try {
             Scene currentState = scene.clone();
-            // Save state only if there's a real change
             if (undoStack.isEmpty() || !scenesEqual(currentState, undoStack.peek())) {
                 undoStack.push(currentState);
-                redoStack.clear();
-                while (undoStack.size() > 20) {
+                redoStack.clear();  // clear redo when new action happens
+                while (undoStack.size() > 20) {  // keep only last 20 states
                     undoStack.remove(0);
                 }
             }
         } catch (CloneNotSupportedException e) {
             e.printStackTrace();
+        }
+    }
+
+    // Add these methods to the DrawShapes class
+    private void undo() {
+        if (!undoStack.isEmpty()) {
+            try {
+                redoStack.push(scene.clone());
+                scene = undoStack.pop();
+                shapePanel.setScene(scene);
+                repaint();
+            } catch (CloneNotSupportedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void redo() {
+        if (!redoStack.isEmpty()) {
+            try {
+                undoStack.push(scene.clone());
+                scene = redoStack.pop();
+                shapePanel.setScene(scene);
+                repaint();
+            } catch (CloneNotSupportedException e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -672,31 +723,5 @@ public class DrawShapes extends JFrame {
                     && r1.getRotation() == r2.getRotation();  // Add rotation check
         }
         return false;
-    }
-
-    private void undo() {
-        if (!undoStack.isEmpty()) {
-            try {
-                redoStack.push(scene.clone());
-                scene = undoStack.pop();
-                shapePanel.setScene(scene);
-                repaint();
-            } catch (CloneNotSupportedException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
-    private void redo() {
-        if (!redoStack.isEmpty()) {
-            try {
-                undoStack.push(scene.clone());
-                scene = redoStack.pop();
-                shapePanel.setScene(scene);
-                repaint();
-            } catch (CloneNotSupportedException e) {
-                e.printStackTrace();
-            }
-        }
     }
 }

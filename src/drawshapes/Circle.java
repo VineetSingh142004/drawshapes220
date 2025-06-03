@@ -7,12 +7,14 @@ import java.awt.Point;
 public class Circle extends AbstractShape {
 
     private int diameter;
+    private int radius;
 
     public Circle(Color color, Point center, int diameter) {
         super(new Point(center.x, center.y));
         setBoundingBox(center.x - diameter / 2, center.x + diameter / 2, center.y - diameter / 2, center.y + diameter / 2);
         this.color = color;
         this.diameter = diameter;
+        this.radius = diameter / 2;
     }
 
     @Override
@@ -52,6 +54,24 @@ public class Circle extends AbstractShape {
                 boundingBox.getRight() + dx,
                 boundingBox.getTop() + dy,
                 boundingBox.getBottom() + dy
+        );
+    }
+
+    public int getRadius() {
+        return diameter / 2;
+    }
+
+    public void setRadius(int radius) {
+        this.diameter = radius * 2;
+        updateBoundingBox();
+    }
+
+    private void updateBoundingBox() {
+        setBoundingBox(
+                anchorPoint.x,
+                anchorPoint.x + diameter,
+                anchorPoint.y,
+                anchorPoint.y + diameter
         );
     }
 

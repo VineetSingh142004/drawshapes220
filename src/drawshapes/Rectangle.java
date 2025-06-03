@@ -70,4 +70,30 @@ public class Rectangle extends AbstractShape {
         );
     }
 
+    public int getWidth() {
+        return width;
+    }
+
+    public int getHeight() {
+        return height;
+    }
+
+    public void setWidth(int width) {
+        this.width = width;
+        updateBoundingBox();
+    }
+
+    public void setHeight(int height) {
+        this.height = height;
+        updateBoundingBox();
+    }
+
+    private void updateBoundingBox() {
+        setBoundingBox(
+                anchorPoint.x,
+                anchorPoint.x + width,
+                anchorPoint.y,
+                anchorPoint.y + height
+        );
+    }
 }

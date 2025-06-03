@@ -184,12 +184,44 @@ public class DrawShapes extends JFrame {
 
             @Override
             public void mouseWheelMoved(MouseWheelEvent e) {
-                // TODO use this to grow/shrink shapes
+                if (currentMode == OperationMode.RESIZE) {
+                    System.out.println("Resizing..."); // Debug output
+
+                    // Make scaling more dramatic and inverse the direction
+                    double scaleFactor = e.getWheelRotation() > 0 ? 0.8 : 1.2;
+
+                    for (IShape shape : scene) {
+                        if (shape.isSelected()) {
+                            System.out.println("Found selected shape"); // Debug output
+
+                            if (shape instanceof Rectangle) {
+                                Rectangle rect = (Rectangle) shape;
+                                if (shape instanceof Square) {
+                                    int newSize = Math.max(20, (int) (rect.getWidth() * scaleFactor));
+                                    ((Square) rect).setSize(newSize);
+                                } else {
+                                    int newWidth = Math.max(20, (int) (rect.getWidth() * scaleFactor));
+                                    int newHeight = Math.max(20, (int) (rect.getHeight() * scaleFactor));
+                                    rect.setWidth(newWidth);
+                                    rect.setHeight(newHeight);
+                                }
+                            } else if (shape instanceof Circle) {
+                                Circle circle = (Circle) shape;
+                                int newRadius = Math.max(10, (int) (circle.getRadius() * scaleFactor));
+                                circle.setRadius(newRadius);
+                            }
+                        }
+                    }
+                    repaint();
+                }
             }
 
         };
-        shapePanel.addMouseMotionListener(a);
+
+        // Add all required listeners
         shapePanel.addMouseListener(a);
+        shapePanel.addMouseMotionListener(a);
+        shapePanel.addMouseWheelListener(a); // Make sure this line is present
     }
 
     /**

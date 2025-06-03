@@ -2,12 +2,15 @@ package drawshapes;
 
 import java.awt.Color;
 import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.Point;
+import java.awt.geom.AffineTransform;
 
 public class Rectangle extends AbstractShape {
 
     protected int width;
     protected int height;
+    private double rotation = 0.0;  // Store rotation in degrees
 
     public Rectangle(Point clicked, int width, int height, Color color) {
         super(new Point(clicked.x - width / 2, clicked.y - height / 2));
@@ -30,12 +33,21 @@ public class Rectangle extends AbstractShape {
      */
     @Override
     public void draw(Graphics g) {
+        Graphics2D g2d = (Graphics2D) g;
+        AffineTransform oldTransform = g2d.getTransform();
+
+        // Apply rotation
+        g2d.rotate(Math.toRadians(rotation), getAnchorPoint().x + width / 2.0, getAnchorPoint().y + height / 2.0);
+
         if (isSelected()) {
             g.setColor(color.darker());
         } else {
             g.setColor(getColor());
         }
         g.fillRect(getAnchorPoint().x, getAnchorPoint().y, width, height);
+
+        // Restore original transform
+        g2d.setTransform(oldTransform);
     }
 
     public String toString() {
@@ -95,5 +107,32 @@ public class Rectangle extends AbstractShape {
                 anchorPoint.y,
                 anchorPoint.y + height
         );
+    }
+
+    // Add getter method for rotation
+    public double getRotation() {
+        return rotation;
+    }
+
+    // Add rotation method if not already present
+    public void rotate(double degrees) {
+        this.rotation = (this.rotation + degrees) % 360;
+        if (this.rotation < 0) {
+            this.rotation += 360;
+        }
+    }
+
+    // Make sure these are added to the clone method
+    @Override
+    public Rectangle clone() {
+        Rectangle cloned = new Rectangle(
+                new Point(anchorPoint),
+                width,
+                height,
+                new Color(color.getRGB())
+        );
+        cloned.setSelected(selected);
+        cloned.rotation = this.rotation;  // Copy rotation value
+        return cloned;
     }
 }

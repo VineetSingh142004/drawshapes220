@@ -38,7 +38,8 @@ public class DrawShapes extends JFrame {
     public enum OperationMode {
         DRAW,
         MOVE,
-        RESIZE
+        RESIZE,
+        ROTATE
     }
 
     private DrawShapesPanel shapePanel;
@@ -164,7 +165,27 @@ public class DrawShapes extends JFrame {
 
             @Override
             public void mouseDragged(MouseEvent e) {
-                if (currentMode == OperationMode.MOVE && lastDragPoint != null) {
+                if (currentMode == OperationMode.ROTATE && lastDragPoint != null) {
+                    for (IShape shape : scene) {
+                        if (shape.isSelected() && shape instanceof Rectangle) {
+                            Rectangle rect = (Rectangle) shape;
+                            Point center = rect.getAnchorPoint();
+
+                            // Calculate angles from center to mouse positions
+                            double lastAngle = Math.atan2(lastDragPoint.y - center.y, lastDragPoint.x - center.x);
+                            double currentAngle = Math.atan2(e.getY() - center.y, e.getX() - center.x);
+
+                            // Convert to degrees and get the difference
+                            double deltaAngle = Math.toDegrees(currentAngle - lastAngle);
+
+                            // Apply rotation
+                            rect.rotate(deltaAngle);
+                            saveState();
+                            repaint();
+                        }
+                    }
+                    lastDragPoint = e.getPoint();
+                } else if (currentMode == OperationMode.MOVE && lastDragPoint != null) {
                     // Calculate movement delta
                     int dx = e.getX() - lastDragPoint.x;
                     int dy = e.getY() - lastDragPoint.y;
@@ -224,6 +245,19 @@ public class DrawShapes extends JFrame {
                                 int newRadius = Math.max(10, (int) (circle.getRadius() * scaleFactor));
                                 circle.setRadius(newRadius);
                             }
+                        }
+                    }
+                    repaint();
+                } else if (currentMode == OperationMode.ROTATE) {
+                    saveState();
+
+                    // Rotate 15 degrees per wheel click
+                    double rotationAmount = e.getWheelRotation() > 0 ? 15 : -15;
+
+                    for (IShape shape : scene) {
+                        if (shape.isSelected() && shape instanceof Rectangle) {
+                            Rectangle rect = (Rectangle) shape;
+                            rect.rotate(rotationAmount);
                         }
                     }
                     repaint();
@@ -512,6 +546,16 @@ public class DrawShapes extends JFrame {
             }
         });
 
+        // rotate option
+        JMenuItem rotateItem = new JMenuItem("Rotate");
+        operationModeMenu.add(rotateItem);
+        rotateItem.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                System.out.println("Switching to rotate mode");
+                currentMode = OperationMode.ROTATE;
+            }
+        });
+
         // set the menu bar for this frame
         this.setJMenuBar(menuBar);
     }
@@ -623,7 +667,9 @@ public class DrawShapes extends JFrame {
         } else if (s1 instanceof Rectangle) {
             Rectangle r1 = (Rectangle) s1;
             Rectangle r2 = (Rectangle) s2;
-            return r1.getWidth() == r2.getWidth() && r1.getHeight() == r2.getHeight();
+            return r1.getWidth() == r2.getWidth()
+                    && r1.getHeight() == r2.getHeight()
+                    && r1.getRotation() == r2.getRotation();  // Add rotation check
         }
         return false;
     }

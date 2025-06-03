@@ -240,17 +240,57 @@ public class DrawShapes extends JFrame {
         loadItem.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                // TODO Auto-generated method stub
-                System.out.println(e.getActionCommand());
                 JFileChooser jfc = new JFileChooser(".");
-
                 int returnValue = jfc.showOpenDialog(null);
 
                 if (returnValue == JFileChooser.APPROVE_OPTION) {
                     File selectedFile = jfc.getSelectedFile();
-                    System.out.println("load from " + selectedFile.getAbsolutePath());
-                    //TODO: load scene from file
+                    try {
+                        java.util.Scanner scanner = new java.util.Scanner(selectedFile);
+                        // Clear existing shapes
+                        scene = new Scene();
 
+                        while (scanner.hasNextLine()) {
+                            String line = scanner.nextLine().trim();
+                            if (line.isEmpty()) {
+                                continue;
+                            }
+
+                            String[] parts = line.split(" ");
+                            String shapeType = parts[0];
+
+                            switch (shapeType) {
+                                case "SQUARE":
+                                    int x = Integer.parseInt(parts[1]);
+                                    int y = Integer.parseInt(parts[2]);
+                                    int size = Integer.parseInt(parts[3]);
+                                    Color color = Util.stringToColor(parts[4]);
+                                    scene.addShape(new Square(color, x + size / 2, y + size / 2, size));
+                                    break;
+                                case "CIRCLE":
+                                    x = Integer.parseInt(parts[1]);
+                                    y = Integer.parseInt(parts[2]);
+                                    int diameter = Integer.parseInt(parts[3]);
+                                    color = Util.stringToColor(parts[4]);
+                                    scene.addShape(new Circle(color, new Point(x + diameter / 2, y + diameter / 2), diameter));
+                                    break;
+                                case "RECTANGLE":
+                                    x = Integer.parseInt(parts[1]);
+                                    y = Integer.parseInt(parts[2]);
+                                    int width = Integer.parseInt(parts[3]);
+                                    int height = Integer.parseInt(parts[4]);
+                                    color = Util.stringToColor(parts[5]);
+                                    scene.addShape(new Rectangle(new Point(x + width / 2, y + height / 2), width, height, color));
+                                    break;
+                            }
+                        }
+                        scanner.close();
+                        shapePanel.setScene(scene);
+                        repaint();
+                    } catch (Exception ex) {
+                        System.err.println("Error loading file: " + ex.getMessage());
+                        ex.printStackTrace();
+                    }
                 }
             }
         });
@@ -260,18 +300,25 @@ public class DrawShapes extends JFrame {
         saveItem.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                // TODO Auto-generated method stub
-                System.out.println(e.getActionCommand());
                 JFileChooser jfc = new JFileChooser(".");
-
-                // int returnValue = jfc.showOpenDialog(null);
                 int returnValue = jfc.showSaveDialog(null);
 
                 if (returnValue == JFileChooser.APPROVE_OPTION) {
                     File selectedFile = jfc.getSelectedFile();
-                    System.out.println("save to " + selectedFile.getAbsolutePath());
-                    //TODO: save scene to file
+                    try {
+                        // If file doesn't end with .txt, add it
+                        if (!selectedFile.getName().toLowerCase().endsWith(".txt")) {
+                            selectedFile = new File(selectedFile.getAbsolutePath() + ".txt");
+                        }
 
+                        java.io.PrintWriter writer = new java.io.PrintWriter(selectedFile);
+                        writer.print(scene.toString());
+                        writer.close();
+                        System.out.println("Scene saved to " + selectedFile.getAbsolutePath());
+                    } catch (Exception ex) {
+                        System.err.println("Error saving file: " + ex.getMessage());
+                        ex.printStackTrace();
+                    }
                 }
             }
         });

@@ -19,7 +19,7 @@ public class Square extends Rectangle {
     }
 
     public int getSize() {
-        return size;
+        return width;  // Changed from size to width since Square uses width/height from Rectangle
     }
 
     public void setSize(int size) {
@@ -28,8 +28,7 @@ public class Square extends Rectangle {
         updateBoundingBox();
     }
 
-    @Override
-    public void updateBoundingBox() {
+    private void updateBoundingBox() {
         setBoundingBox(
                 anchorPoint.x,
                 anchorPoint.x + width,

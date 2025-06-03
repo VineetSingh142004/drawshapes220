@@ -16,7 +16,9 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Stack;
 
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
@@ -46,10 +48,19 @@ public class DrawShapes extends JFrame {
     private Point startDrag;
     private OperationMode currentMode = OperationMode.DRAW;
     private Point lastDragPoint;
+    private Stack<Scene> undoStack = new Stack<>();
+    private Stack<Scene> redoStack = new Stack<>();
 
     public DrawShapes(int width, int height) {
         setTitle("Draw Shapes!");
         scene = new Scene();
+
+        // Initialize first state
+        try {
+            undoStack.push(scene.clone());
+        } catch (CloneNotSupportedException e) {
+            e.printStackTrace();
+        }
 
         // create our canvas, add to this frame's content pane
         shapePanel = new DrawShapesPanel(width, height, scene);
@@ -84,23 +95,21 @@ public class DrawShapes extends JFrame {
                         // Deselect all shapes before creating a new one
                         deselectAllShapes();
 
+                        // Create the shape first
+                        IShape newShape = null;
                         if (shapeType == ShapeType.SQUARE) {
-                            scene.addShape(new Square(color,
-                                    e.getX(),
-                                    e.getY(),
-                                    100));
+                            newShape = new Square(color, e.getX(), e.getY(), 100);
                         } else if (shapeType == ShapeType.CIRCLE) {
-                            scene.addShape(new Circle(color,
-                                    e.getPoint(),
-                                    100));
+                            newShape = new Circle(color, e.getPoint(), 100);
                         } else if (shapeType == ShapeType.RECTANGLE) {
-                            scene.addShape(new Rectangle(
-                                    e.getPoint(),
-                                    100,
-                                    200,
-                                    color));
+                            newShape = new Rectangle(e.getPoint(), 100, 200, color);
                         }
-                        repaint();
+
+                        if (newShape != null) {
+                            saveState(); // Save state before adding new shape
+                            scene.addShape(newShape);
+                            repaint();
+                        }
                     }
                 } else if (e.getButton() == MouseEvent.BUTTON2) {
                     // apparently this is middle click
@@ -160,9 +169,10 @@ public class DrawShapes extends JFrame {
                     int dx = e.getX() - lastDragPoint.x;
                     int dy = e.getY() - lastDragPoint.y;
 
-                    // Move all selected shapes
+                    boolean anyShapeMoved = false;
                     for (IShape shape : scene) {
                         if (shape.isSelected()) {
+                            anyShapeMoved = true;
                             Point currentAnchor = shape.getAnchorPoint();
                             shape.setAnchorPoint(new Point(
                                     currentAnchor.x + dx,
@@ -171,7 +181,10 @@ public class DrawShapes extends JFrame {
                         }
                     }
 
-                    // Update last drag point
+                    if (anyShapeMoved) {
+                        saveState(); // Save state after moving shapes
+                    }
+
                     lastDragPoint = e.getPoint();
                     repaint();
                 } else {
@@ -185,6 +198,7 @@ public class DrawShapes extends JFrame {
             @Override
             public void mouseWheelMoved(MouseWheelEvent e) {
                 if (currentMode == OperationMode.RESIZE) {
+                    saveState(); // Add this line
                     System.out.println("Resizing..."); // Debug output
 
                     // Make scaling more dramatic and inverse the direction
@@ -320,6 +334,38 @@ public class DrawShapes extends JFrame {
                         ex.printStackTrace();
                     }
                 }
+            }
+        });
+        // undo
+        JMenuItem undoItem = new JMenuItem("Undo");
+        fileMenu.add(undoItem);
+        undoItem.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                undo();
+            }
+        });
+
+        // redo
+        JMenuItem redoItem = new JMenuItem("Redo");
+        fileMenu.add(redoItem);
+        redoItem.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                redo();
+            }
+        });
+
+        // clear canvas
+        JMenuItem clearItem = new JMenuItem("Clear Canvas");
+        fileMenu.add(clearItem);
+        clearItem.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                // Save current state before clearing
+                saveState();
+
+                // Clear the scene
+                scene = new Scene();
+                shapePanel.setScene(scene);
+                repaint();
             }
         });
         fileMenu.addSeparator();
@@ -503,5 +549,108 @@ public class DrawShapes extends JFrame {
             s.setSelected(false);
         }
         repaint();
+    }
+
+    // Add these methods to the DrawShapes class
+    private void saveState() {
+        try {
+            Scene currentState = scene.clone();
+            // Save state only if there's a real change
+            if (undoStack.isEmpty() || !scenesEqual(currentState, undoStack.peek())) {
+                undoStack.push(currentState);
+                redoStack.clear();
+                while (undoStack.size() > 20) {
+                    undoStack.remove(0);
+                }
+            }
+        } catch (CloneNotSupportedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // Add this helper method to compare scenes
+    private boolean scenesEqual(Scene s1, Scene s2) {
+        if (s1 == s2) {
+            return true;
+        }
+        if (s1 == null || s2 == null) {
+            return false;
+        }
+
+        Iterator<IShape> it1 = s1.iterator();
+        Iterator<IShape> it2 = s2.iterator();
+
+        while (it1.hasNext() && it2.hasNext()) {
+            IShape shape1 = it1.next();
+            IShape shape2 = it2.next();
+
+            if (!shapesEqual(shape1, shape2)) {
+                return false;
+            }
+        }
+
+        return !it1.hasNext() && !it2.hasNext();
+    }
+
+    private boolean shapesEqual(IShape s1, IShape s2) {
+        if (s1 == s2) {
+            return true;
+        }
+        if (s1 == null || s2 == null) {
+            return false;
+        }
+        if (!s1.getClass().equals(s2.getClass())) {
+            return false;
+        }
+
+        Point p1 = s1.getAnchorPoint();
+        Point p2 = s2.getAnchorPoint();
+        if (!p1.equals(p2)) {
+            return false;
+        }
+
+        if (!s1.getColor().equals(s2.getColor())) {
+            return false;
+        }
+        if (s1.isSelected() != s2.isSelected()) {
+            return false;
+        }
+
+        if (s1 instanceof Square) {
+            return ((Square) s1).getSize() == ((Square) s2).getSize();
+        } else if (s1 instanceof Circle) {
+            return ((Circle) s1).getRadius() == ((Circle) s2).getRadius();
+        } else if (s1 instanceof Rectangle) {
+            Rectangle r1 = (Rectangle) s1;
+            Rectangle r2 = (Rectangle) s2;
+            return r1.getWidth() == r2.getWidth() && r1.getHeight() == r2.getHeight();
+        }
+        return false;
+    }
+
+    private void undo() {
+        if (!undoStack.isEmpty()) {
+            try {
+                redoStack.push(scene.clone());
+                scene = undoStack.pop();
+                shapePanel.setScene(scene);
+                repaint();
+            } catch (CloneNotSupportedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void redo() {
+        if (!redoStack.isEmpty()) {
+            try {
+                undoStack.push(scene.clone());
+                scene = redoStack.pop();
+                shapePanel.setScene(scene);
+                repaint();
+            } catch (CloneNotSupportedException e) {
+                e.printStackTrace();
+            }
+        }
     }
 }

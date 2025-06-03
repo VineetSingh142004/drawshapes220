@@ -231,8 +231,40 @@ public class DrawShapes extends JFrame {
             public void actionPerformed(ActionEvent e) {
                 String text = e.getActionCommand();
                 System.out.println(text);
-                // change the color instance variable to blue
                 color = Color.BLUE;
+            }
+        });
+
+        // green color
+        JMenuItem greenColorItem = new JMenuItem("Green");
+        colorMenu.add(greenColorItem);
+        greenColorItem.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                String text = e.getActionCommand();
+                System.out.println(text);
+                color = Color.GREEN;
+            }
+        });
+
+        // yellow color
+        JMenuItem yellowColorItem = new JMenuItem("Yellow");
+        colorMenu.add(yellowColorItem);
+        yellowColorItem.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                String text = e.getActionCommand();
+                System.out.println(text);
+                color = Color.YELLOW;
+            }
+        });
+
+        // black color
+        JMenuItem blackColorItem = new JMenuItem("Black");
+        colorMenu.add(blackColorItem);
+        blackColorItem.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                String text = e.getActionCommand();
+                System.out.println(text);
+                color = Color.BLACK;
             }
         });
 
